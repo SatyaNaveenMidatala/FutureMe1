@@ -1,23 +1,38 @@
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
+import dotenv from 'dotenv'
+import mongoose from 'mongoose'
+import { savePortfolio, getPortfolio, portfolioStore, setDbAvailable } from './services/portfolioService'
 
-// In-memory store for portfolios keyed by username
-interface FuturePortfolio {
-  username: string
-  profile: any
-  timeline: any[]
-  futureProjects: any[]
-  skillRoadmap: any[]
-  futureSelfMessage: string
-}
-const portfolioStore: Record<string, FuturePortfolio> = {}
+dotenv.config()
 
 const app = express()
 const port = process.env.PORT ? parseInt(process.env.PORT) : 4000
 
 app.use(cors())
 app.use(bodyParser.json())
+
+// Attempt to connect to MongoDB if MONGODB_URI is provided. If connection
+// fails or the env var is missing, the service falls back to the in-memory store.
+const mongoUri = process.env.MONGODB_URI || ''
+let dbConnected = false
+if (mongoUri) {
+  mongoose
+    .connect(mongoUri)
+    .then(() => {
+      dbConnected = true
+      setDbAvailable(true)
+      console.log('Connected to MongoDB')
+    })
+    .catch((err) => {
+      dbConnected = false
+      setDbAvailable(false)
+      console.warn('Failed to connect to MongoDB, continuing with in-memory store:', err.message)
+    })
+} else {
+  console.log('MONGODB_URI not set — using in-memory portfolio store')
+}
 
 // Returns a mock profile for the UI to consume. In a real app this would
 // come from a user database or auth token. Keeping this endpoint so the
@@ -161,7 +176,8 @@ function generateFutureProfile({
     // For each phase, combine user skills with a trending skill and an
     // interest domain to encourage both depth and breadth.
     const recommendedSkills = [
-      ...skills.map(s => `${s} (advanced)`),
+      // annotate 's' as string to avoid implicit any errors
+      ...skills.map((s: string) => `${s} (advanced)`),
       trendingSkills[idx % trendingSkills.length],
       interests.split(',')[idx % interests.split(',').length] || 'Soft Skills'
     ]
@@ -208,35 +224,31 @@ app.post('/api/generate-future', (req, res) => {
  * memory under the provided username. In a real app this would persist
  * to a database.
  */
-app.post('/api/save-portfolio', (req, res) => {
+app.post('/api/save-portfolio', async (req, res) => {
   const { username, profile, timeline, futureProjects, skillRoadmap, futureSelfMessage } =
     req.body || {}
-  if (!username || !profile) {
-    return res.status(400).json({ error: 'username and profile are required' })
+  const result = await savePortfolio({ username, profile, timeline, futureProjects, skillRoadmap, futureSelfMessage })
+  if (!result.success) {
+    return res.status(400).json({ error: result.error })
   }
-  portfolioStore[username] = {
-    username,
-    profile,
-    timeline,
-    futureProjects,
-    skillRoadmap,
-    futureSelfMessage
-  }
-  res.json({ status: 'saved' })
+  res.json({ status: 'saved', source: result.source })
 })
 
 /**
  * Retrieve a saved future portfolio by username. Returns 404 if not found.
  */
-app.get('/api/get-portfolio/:username', (req, res) => {
+app.get('/api/get-portfolio/:username', async (req, res) => {
   const { username } = req.params
-  if (username && portfolioStore[username]) {
-    return res.json(portfolioStore[username])
-  }
-  res.status(404).json({ error: 'portfolio not found' })
+  const result = await getPortfolio(username)
+  if (!result.success) return res.status(404).json({ error: result.error })
+  res.json(result.data)
+})
+
+// Lightweight health endpoint for local/dev checks
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', dbConnected })
 })
 
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)
 })
-

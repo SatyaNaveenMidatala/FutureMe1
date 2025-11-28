@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ClickSpark from '../components/ClickSpark'
 
 /**
  * Onboarding wizard collects basic information about the user and their
@@ -79,7 +80,16 @@ export default function Onboarding() {
 
   return (
     <div className="page onboarding">
-      <h1>Onboarding</h1>
+      <header>
+        <h1>Future Me</h1>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/profile">Profile</a>
+          <a href="/vision">Vision</a>
+        </nav>
+      </header>
+
+      <h2>Onboarding</h2>
       {/* progress indicator */}
       <div className="onboarding-progress">
         {[0, 1, 2, 3].map(i => (
@@ -181,7 +191,7 @@ export default function Onboarding() {
         <div className="onboarding-step">
           <h2>Time Horizon</h2>
           <label>
-            How far into the future should we plan (years)?
+            <strong>How far into the future should we plan (years)?</strong>
             <select value={horizonYears} onChange={e => setHorizonYears(e.target.value)}>
               <option value="3">3 Years</option>
               <option value="5">5 Years</option>

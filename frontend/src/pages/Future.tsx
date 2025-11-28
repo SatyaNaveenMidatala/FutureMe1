@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import ChromaGrid from '../components/ChromaGrid'
+import ClickSpark from '../components/ClickSpark'
 
 type LocationState = {
   profile: {
@@ -81,9 +83,28 @@ export default function Future() {
     }
   }
 
+  // Map future projects to ChromaGrid items
+  const chromaItems = result.futureProjects.map((p, idx) => ({
+    title: p.title,
+    subtitle: p.description.slice(0, 80) + (p.description.length > 80 ? '…' : ''),
+    handle: `#${idx + 1}`,
+    borderColor: '#60A5FA',
+    gradient: ['linear-gradient(135deg,#667eea,#764ba2)', 'linear-gradient(135deg,#ec4899,#f59e0b)', 'linear-gradient(135deg,#06b6d4,#0891b2)', 'linear-gradient(135deg,#8b5cf6,#7c3aed)'][idx % 4],
+    url: '#'
+  }))
+
   return (
     <div className="page future-page">
-      <h1>Your Journey</h1>
+      <header>
+        <h1>Future Me</h1>
+        <nav>
+          <a href="/">Home</a>
+          <a href="/profile">Profile</a>
+          <a href="/vision">Vision</a>
+        </nav>
+      </header>
+
+      <h2>Your Journey</h2>
       <div className="tab-toggle">
         <button
           className={activeTab === 'now' ? 'active' : ''}
@@ -136,6 +157,12 @@ export default function Future() {
               ))}
             </div>
           </section>
+
+          <section className="chroma-section">
+            <h2>Future Projects Gallery</h2>
+            <ChromaGrid items={chromaItems} radius={260} damping={0.5} fadeOut={0.5} ease="power3.out" />
+          </section>
+
           <section className="projects-section">
             <h2>Future Projects</h2>
             {result.futureProjects.map((proj, idx) => (
